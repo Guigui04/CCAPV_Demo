@@ -18,6 +18,7 @@ const AdminDashboard: React.FC = () => {
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [editingNews, setEditingNews] = useState<News | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [selectedNewsIds, setSelectedNewsIds] = useState<string[]>([]);
 
   useEffect(() => {
     const qNews = query(collection(db, 'news'), orderBy('createdAt', 'desc'));
@@ -52,6 +53,32 @@ const AdminDashboard: React.FC = () => {
   const handleCreateNews = () => {
     setEditingNews(null);
     setActiveView('editor');
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedNewsIds(news.map(n => n.id));
+    } else {
+      setSelectedNewsIds([]);
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedNewsIds(prev => 
+      prev.includes(id) ? prev.filter(newsId => newsId !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedNewsIds.length === 0) return;
+    if (window.confirm(`Es-tu sûr de vouloir supprimer ${selectedNewsIds.length} information(s) ?`)) {
+      try {
+        await Promise.all(selectedNewsIds.map(id => deleteDoc(doc(db, 'news', id))));
+        setSelectedNewsIds([]);
+      } catch (error) {
+        console.error("Error deleting multiple news:", error);
+      }
+    }
   };
 
   const handleDeleteNews = async (id: string) => {
@@ -194,9 +221,40 @@ const AdminDashboard: React.FC = () => {
               </button>
             </div>
 
+            {news.length > 0 && (
+              <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedNewsIds.length === news.length}
+                    onChange={handleSelectAll}
+                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-sm font-bold text-slate-700">
+                    {selectedNewsIds.length > 0 ? `${selectedNewsIds.length} sélectionné(s)` : 'Tout sélectionner'}
+                  </span>
+                </div>
+                {selectedNewsIds.length > 0 && (
+                  <button 
+                    onClick={handleBulkDelete}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-600 rounded-xl text-sm font-bold hover:bg-red-200 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                    Supprimer
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="space-y-3">
               {news.map((item) => (
                 <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between gap-4">
+                  <input 
+                    type="checkbox"
+                    checked={selectedNewsIds.includes(item.id)}
+                    onChange={() => toggleSelection(item.id)}
+                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={cn(
