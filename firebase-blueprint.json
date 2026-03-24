@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Information about the young user or administrator",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "birthDate": { "type": "string", "format": "date" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["firstName", "lastName", "email", "role"]
+    },
+    "Category": {
+      "title": "News Category",
+      "description": "Categories for organizing news and information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "icon": { "type": "string", "description": "Lucide icon name" },
+        "color": { "type": "string", "description": "Tailwind color class" }
+      },
+      "required": ["name", "icon", "color"]
+    },
+    "News": {
+      "title": "Information Content",
+      "description": "News, activities, and opportunities for youth",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "content": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "url": { "type": "string" }
+            }
+          }
+        },
+        "isFeatured": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["draft", "published", "archived"] },
+        "publishedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "categoryId", "status"]
+    },
+    "Feedback": {
+      "title": "User Feedback",
+      "description": "Private feedback or questions from users about news",
+      "type": "object",
+      "properties": {
+        "newsId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "reactionType": { "type": "string", "enum": ["useful", "unclear", "interested", "more_info"] },
+        "comment": { "type": "string" },
+        "status": { "type": "string", "enum": ["new", "processed", "archived"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["newsId", "userId", "reactionType", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "News categories"
+    },
+    "/news/{newsId}": {
+      "schema": "News",
+      "description": "Informational content"
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "Feedback",
+      "description": "Private user feedback"
+    }
+  }
+}
