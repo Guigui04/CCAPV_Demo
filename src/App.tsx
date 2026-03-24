@@ -15,6 +15,8 @@ import Auth from './pages/Auth';
 import NewsDetail from './pages/NewsDetail';
 import { News } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Toaster } from 'sonner';
+import PushNotificationManager from './components/PushNotificationManager';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
@@ -56,6 +58,8 @@ const AppContent: React.FC = () => {
 
   return (
     <>
+      <PushNotificationManager />
+      <Toaster position="top-center" />
       <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
         {renderContent()}
       </Layout>

@@ -1,21 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc, addDoc, updateDoc } from 'firebase/firestore';
-import { News, Feedback, NewsStatus } from '../types';
+import { News, Feedback, NewsStatus, Alert } from '../types';
 import { CATEGORIES, REACTION_LABELS, FEEDBACK_STATUS_LABELS } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, Edit2, Trash2, MessageSquare, FileText, 
-  CheckCircle, Archive, 
+  CheckCircle, Archive, Bell,
   LayoutDashboard, ChevronRight, X, Image as ImageIcon, Link as LinkIcon,
   CheckCircle2, Sparkles
 } from 'lucide-react';
 import { cn, formatDate } from '../utils';
 
 const AdminDashboard: React.FC = () => {
-  const [activeView, setActiveView] = useState<'home' | 'news' | 'feedback' | 'editor'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'news' | 'feedback' | 'editor' | 'alerts'>('home');
   const [news, setNews] = useState<News[]>([]);
   const [feedback, setFeedback] = useState<Feedback[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [editingNews, setEditingNews] = useState<News | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
   const [selectedNewsIds, setSelectedNewsIds] = useState<string[]>([]);
@@ -39,9 +40,19 @@ const AdminDashboard: React.FC = () => {
       setFeedback(feedbackData);
     });
 
+    const qAlerts = query(collection(db, 'alerts'), orderBy('createdAt', 'desc'));
+    const unsubscribeAlerts = onSnapshot(qAlerts, (snapshot) => {
+      const alertsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Alert[];
+      setAlerts(alertsData);
+    });
+
     return () => {
       unsubscribeNews();
       unsubscribeFeedback();
+      unsubscribeAlerts();
     };
   }, []);
 
@@ -156,6 +167,12 @@ const AdminDashboard: React.FC = () => {
             className={cn("p-2 rounded-xl transition-all", activeView === 'feedback' ? "bg-indigo-600 text-white" : "bg-white text-slate-400 border border-slate-200")}
           >
             <MessageSquare size={20} />
+          </button>
+          <button 
+            onClick={() => setActiveView('alerts')}
+            className={cn("p-2 rounded-xl transition-all", activeView === 'alerts' ? "bg-indigo-600 text-white" : "bg-white text-slate-400 border border-slate-200")}
+          >
+            <Bell size={20} />
           </button>
         </div>
       </div>
@@ -340,6 +357,10 @@ const AdminDashboard: React.FC = () => {
               </div>
             ))}
           </motion.div>
+        )}
+
+        {activeView === 'alerts' && (
+          <AlertsManager alerts={alerts} />
         )}
 
         {activeView === 'editor' && (
@@ -580,6 +601,138 @@ const NewsEditor: React.FC<NewsEditorProps> = ({ item, onClose }) => {
           {loading ? 'Enregistrement...' : 'Enregistrer'}
           {!loading && <CheckCircle2 size={20} />}
         </button>
+      </div>
+    </motion.div>
+  );
+};
+
+interface AlertsManagerProps {
+  alerts: Alert[];
+}
+
+const AlertsManager: React.FC<AlertsManagerProps> = ({ alerts }) => {
+  const [isCreating, setIsCreating] = useState(false);
+  const [formData, setFormData] = useState<Partial<Alert>>({
+    title: '',
+    message: '',
+    type: 'info'
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSave = async () => {
+    if (!formData.title || !formData.message) return;
+    setLoading(true);
+    try {
+      await addDoc(collection(db, 'alerts'), {
+        ...formData,
+        createdAt: new Date().toISOString()
+      });
+      setIsCreating(false);
+      setFormData({ title: '', message: '', type: 'info' });
+    } catch (error) {
+      console.error("Error creating alert:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Es-tu sûr de vouloir supprimer cette alerte ?')) {
+      try {
+        await deleteDoc(doc(db, 'alerts', id));
+      } catch (error) {
+        console.error("Error deleting alert:", error);
+      }
+    }
+  };
+
+  return (
+    <motion.div key="alerts" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-black text-slate-900">Gestion des Alertes</h3>
+        <button 
+          onClick={() => setIsCreating(!isCreating)}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors"
+        >
+          {isCreating ? <X size={16} /> : <Plus size={16} />}
+          {isCreating ? 'Annuler' : 'Nouvelle Alerte'}
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {isCreating && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Titre</label>
+                <input 
+                  type="text" 
+                  value={formData.title} 
+                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                  className="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-slate-900"
+                  placeholder="Titre de l'alerte"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Message</label>
+                <textarea 
+                  value={formData.message} 
+                  onChange={(e) => setFormData({...formData, message: e.target.value})}
+                  className="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-slate-700 min-h-[100px]"
+                  placeholder="Contenu du message..."
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Type</label>
+                <select 
+                  value={formData.type} 
+                  onChange={(e) => setFormData({...formData, type: e.target.value as Alert['type']})}
+                  className="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-slate-900"
+                >
+                  <option value="info">Information</option>
+                  <option value="event">Événement</option>
+                  <option value="featured">Important</option>
+                </select>
+              </div>
+              <button 
+                onClick={handleSave}
+                disabled={loading || !formData.title || !formData.message}
+                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 disabled:bg-slate-200 transition-all"
+              >
+                {loading ? 'Création...' : 'Créer l\'alerte'}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="space-y-3">
+        {alerts.length === 0 ? (
+          <p className="text-center text-slate-400 py-8">Aucune alerte active.</p>
+        ) : (
+          alerts.map(alert => (
+            <div key={alert.id} className="bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={cn(
+                    "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                    alert.type === 'info' ? "bg-blue-100 text-blue-600" :
+                    alert.type === 'event' ? "bg-emerald-100 text-emerald-600" :
+                    "bg-amber-100 text-amber-600"
+                  )}>
+                    {alert.type}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">{formatDate(alert.createdAt)}</span>
+                </div>
+                <h4 className="font-bold text-slate-900 truncate">{alert.title}</h4>
+                <p className="text-sm text-slate-500 line-clamp-1">{alert.message}</p>
+              </div>
+              <button onClick={() => handleDelete(alert.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
+                <Trash2 size={18} />
+              </button>
+            </div>
+          ))
+        )}
       </div>
     </motion.div>
   );

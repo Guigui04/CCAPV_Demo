@@ -42,6 +42,14 @@ export interface News {
   updatedAt: string;
 }
 
+export interface Alert {
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'event' | 'featured';
+  createdAt: string;
+}
+
 export interface Feedback {
   id: string;
   newsId: string;

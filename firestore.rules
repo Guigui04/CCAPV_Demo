@@ -66,5 +66,10 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidFeedback(request.resource.data);
       allow update, delete: if isAdmin();
     }
+
+    match /alerts/{alertId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }
