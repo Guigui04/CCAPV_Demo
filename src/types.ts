@@ -10,6 +10,10 @@ export interface UserProfile {
   email: string;
   role: Role;
   birthDate?: string;
+  postalCode?: string;
+  city?: string;
+  notificationsEnabled?: boolean;
+  emailNotificationsEnabled?: boolean;
   createdAt: string;
 }
 

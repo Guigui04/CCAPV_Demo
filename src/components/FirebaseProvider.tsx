@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../firebase';
-import { onAuthStateChanged, User, signOut as firebaseSignOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { onAuthStateChanged, User, signOut as firebaseSignOut, deleteUser } from 'firebase/auth';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { UserProfile } from '../types';
 
 interface AuthContextType {
@@ -11,6 +11,7 @@ interface AuthContextType {
   isAdmin: boolean;
   logout: () => void;
   refreshProfile: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
   isAdmin: false,
   logout: () => {},
   refreshProfile: async () => {},
+  deleteAccount: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -93,10 +95,24 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const deleteAccount = async () => {
+    if (user) {
+      try {
+        // Delete user document from Firestore
+        await deleteDoc(doc(db, 'users', user.uid));
+        // Delete user from Firebase Auth
+        await deleteUser(user);
+      } catch (error) {
+        console.error("Error deleting account:", error);
+        throw error;
+      }
+    }
+  };
+
   const isAdmin = profile?.role === 'admin' || user?.email === 'admin@ij.com';
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAdmin, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAdmin, logout, refreshProfile, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );
