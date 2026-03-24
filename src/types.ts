@@ -18,6 +18,7 @@ export interface Category {
   name: string;
   icon: string;
   color: string;
+  subcategories?: string[];
 }
 
 export interface NewsLink {
@@ -31,6 +32,7 @@ export interface News {
   subtitle?: string;
   content: string;
   categoryId: string;
+  subcategoryId?: string;
   imageUrl?: string;
   links?: NewsLink[];
   isFeatured: boolean;

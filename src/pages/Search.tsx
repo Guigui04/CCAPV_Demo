@@ -15,6 +15,7 @@ interface SearchProps {
 const Search: React.FC<SearchProps> = ({ onNewsClick }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [allNews, setAllNews] = useState<News[]>([]);
   const [results, setResults] = useState<News[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,11 +42,14 @@ const Search: React.FC<SearchProps> = ({ onNewsClick }) => {
       const matchesSearch = news.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                            news.content.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = !selectedCategory || news.categoryId === selectedCategory;
-      return matchesSearch && matchesCategory;
+      const matchesSubcategory = !selectedSubcategory || news.subcategoryId === selectedSubcategory;
+      return matchesSearch && matchesCategory && matchesSubcategory;
     });
 
     setResults(filtered);
-  }, [searchTerm, selectedCategory, allNews]);
+  }, [searchTerm, selectedCategory, selectedSubcategory, allNews]);
+
+  const activeCategoryObj = CATEGORIES.find(c => c.id === selectedCategory);
 
   return (
     <div className="space-y-6 pb-8">
@@ -83,7 +87,15 @@ const Search: React.FC<SearchProps> = ({ onNewsClick }) => {
         {CATEGORIES.map((cat) => (
           <button
             key={cat.id}
-            onClick={() => setSelectedCategory(cat.id)}
+            onClick={() => {
+              if (selectedCategory === cat.id) {
+                setSelectedCategory(null);
+                setSelectedSubcategory(null);
+              } else {
+                setSelectedCategory(cat.id);
+                setSelectedSubcategory(null);
+              }
+            }}
             className={cn(
               "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all border",
               selectedCategory === cat.id 
@@ -95,6 +107,36 @@ const Search: React.FC<SearchProps> = ({ onNewsClick }) => {
           </button>
         ))}
       </div>
+
+      {activeCategoryObj && activeCategoryObj.subcategories && (
+        <div className="flex overflow-x-auto gap-2 pb-2 no-scrollbar -mt-2">
+          <button
+            onClick={() => setSelectedSubcategory(null)}
+            className={cn(
+              "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all",
+              !selectedSubcategory 
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" 
+                : "bg-white text-slate-500 border border-slate-200"
+            )}
+          >
+            Tout voir
+          </button>
+          {activeCategoryObj.subcategories.map(sub => (
+            <button
+              key={sub}
+              onClick={() => setSelectedSubcategory(sub)}
+              className={cn(
+                "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all",
+                selectedSubcategory === sub 
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" 
+                  : "bg-white text-slate-500 border border-slate-200"
+              )}
+            >
+              {sub}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="space-y-4">
         {loading ? (

@@ -33,7 +33,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ onSelect, selectedId }) => 
               <Icon size={24} strokeWidth={2.5} />
             </div>
             <span className={cn(
-              "text-[10px] font-bold uppercase tracking-tight text-center leading-tight",
+              "text-[9px] font-bold uppercase tracking-tight text-center leading-tight line-clamp-2",
               isActive ? "text-indigo-600" : "text-slate-500"
             )}>
               {category.name}

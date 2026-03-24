@@ -1,16 +1,55 @@
-export const CATEGORIES = [
-  { id: 'sante', name: 'Santé', icon: 'HeartPulse', color: 'bg-rose-500' },
-  { id: 'activites', name: 'Activités', icon: 'Gamepad2', color: 'bg-orange-500' },
-  { id: 'sport', name: 'Sport', icon: 'Trophy', color: 'bg-emerald-500' },
-  { id: 'culture', name: 'Culture', icon: 'Palette', color: 'bg-indigo-500' },
-  { id: 'emploi', name: 'Emploi', icon: 'Briefcase', color: 'bg-blue-500' },
-  { id: 'orientation', name: 'Orientation', icon: 'Compass', color: 'bg-violet-500' },
-  { id: 'aides', name: 'Aides', icon: 'HandHelping', color: 'bg-amber-500' },
-  { id: 'mobilite', name: 'Mobilité', icon: 'Bus', color: 'bg-sky-500' },
-  { id: 'logement', name: 'Logement', icon: 'Home', color: 'bg-teal-500' },
-  { id: 'prevention', name: 'Prévention', icon: 'ShieldAlert', color: 'bg-red-500' },
-  { id: 'citoyennete', name: 'Citoyenneté', icon: 'Users', color: 'bg-purple-500' },
-  { id: 'evenements', name: 'Événements', icon: 'Calendar', color: 'bg-fuchsia-500' },
+import { Category } from './types';
+
+export const CATEGORIES: Category[] = [
+  { 
+    id: 'orientation', 
+    name: 'Orientation & Formation', 
+    icon: 'Compass', 
+    color: 'bg-violet-500',
+    subcategories: ['Parcours scolaires', 'Reconversion', 'Alternance']
+  },
+  { 
+    id: 'emploi', 
+    name: 'Emploi', 
+    icon: 'Briefcase', 
+    color: 'bg-blue-500',
+    subcategories: ['Recherche de job', 'CV', 'Stages', "Dispositifs d'insertion"]
+  },
+  { 
+    id: 'quotidien', 
+    name: 'Vie quotidienne', 
+    icon: 'Coffee', 
+    color: 'bg-orange-500',
+    subcategories: ['Logement', 'Budget', 'Transport']
+  },
+  { 
+    id: 'sante', 
+    name: 'Santé', 
+    icon: 'HeartPulse', 
+    color: 'bg-rose-500',
+    subcategories: ['Accès aux soins', 'Prévention', 'Bien-être']
+  },
+  { 
+    id: 'mobilite', 
+    name: 'Mobilité internationale', 
+    icon: 'Globe', 
+    color: 'bg-sky-500',
+    subcategories: ['Erasmus+', 'Volontariat', 'Séjours à l\'étranger']
+  },
+  { 
+    id: 'engagement', 
+    name: 'Engagement', 
+    icon: 'Users', 
+    color: 'bg-emerald-500',
+    subcategories: ['Bénévolat', 'Service civique', 'Projets citoyens']
+  },
+  { 
+    id: 'droits', 
+    name: 'Accès aux droits', 
+    icon: 'Scale', 
+    color: 'bg-amber-500',
+    subcategories: ['Aides financières', 'Dispositifs publics']
+  },
 ];
 
 export const REACTION_LABELS: Record<string, string> = {

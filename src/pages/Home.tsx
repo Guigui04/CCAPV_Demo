@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
 import { News } from '../types';
+import { CATEGORIES } from '../constants';
 import NewsCard from '../components/NewsCard';
 import CategoryGrid from '../components/CategoryGrid';
+import { cn } from '../utils';
 
 interface HomeProps {
   onNewsClick: (news: News) => void;
@@ -13,6 +15,7 @@ const Home: React.FC<HomeProps> = ({ onNewsClick }) => {
   const [featuredNews, setFeaturedNews] = useState<News[]>([]);
   const [latestNews, setLatestNews] = useState<News[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,9 +42,23 @@ const Home: React.FC<HomeProps> = ({ onNewsClick }) => {
     return () => unsubscribe();
   }, []);
 
-  const filteredNews = selectedCategory 
-    ? latestNews.filter(n => n.categoryId === selectedCategory)
-    : latestNews;
+  const handleCategorySelect = (id: string) => {
+    if (id === selectedCategory) {
+      setSelectedCategory(null);
+      setSelectedSubcategory(null);
+    } else {
+      setSelectedCategory(id);
+      setSelectedSubcategory(null);
+    }
+  };
+
+  const filteredNews = latestNews.filter(n => {
+    if (selectedCategory && n.categoryId !== selectedCategory) return false;
+    if (selectedSubcategory && n.subcategoryId !== selectedSubcategory) return false;
+    return true;
+  });
+
+  const activeCategoryObj = CATEGORIES.find(c => c.id === selectedCategory);
 
   if (loading) {
     return (
@@ -76,9 +93,39 @@ const Home: React.FC<HomeProps> = ({ onNewsClick }) => {
       <section>
         <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-4">Catégories</h2>
         <CategoryGrid 
-          onSelect={(id) => setSelectedCategory(id === selectedCategory ? null : id)} 
+          onSelect={handleCategorySelect} 
           selectedId={selectedCategory || undefined}
         />
+        
+        {activeCategoryObj && activeCategoryObj.subcategories && (
+          <div className="flex overflow-x-auto gap-2 pb-2 no-scrollbar mb-4 -mt-4">
+            <button
+              onClick={() => setSelectedSubcategory(null)}
+              className={cn(
+                "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all",
+                !selectedSubcategory 
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" 
+                  : "bg-white text-slate-500 border border-slate-200"
+              )}
+            >
+              Tout voir
+            </button>
+            {activeCategoryObj.subcategories.map(sub => (
+              <button
+                key={sub}
+                onClick={() => setSelectedSubcategory(sub)}
+                className={cn(
+                  "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all",
+                  selectedSubcategory === sub 
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-200" 
+                    : "bg-white text-slate-500 border border-slate-200"
+                )}
+              >
+                {sub}
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       <section>

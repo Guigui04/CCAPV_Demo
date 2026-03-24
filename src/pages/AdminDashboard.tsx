@@ -8,7 +8,7 @@ import {
   Plus, Edit2, Trash2, MessageSquare, FileText, 
   CheckCircle, Archive, 
   LayoutDashboard, ChevronRight, X, Image as ImageIcon, Link as LinkIcon,
-  CheckCircle2
+  CheckCircle2, Sparkles
 } from 'lucide-react';
 import { cn, formatDate } from '../utils';
 
@@ -17,6 +17,7 @@ const AdminDashboard: React.FC = () => {
   const [news, setNews] = useState<News[]>([]);
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [editingNews, setEditingNews] = useState<News | null>(null);
+  const [isSeeding, setIsSeeding] = useState(false);
 
   useEffect(() => {
     const qNews = query(collection(db, 'news'), orderBy('createdAt', 'desc'));
@@ -68,6 +69,41 @@ const AdminDashboard: React.FC = () => {
       await updateDoc(doc(db, 'feedback', id), { status });
     } catch (error) {
       console.error("Error updating feedback status:", error);
+    }
+  };
+
+  const handleSeedData = async () => {
+    if (!window.confirm('Générer des exemples pour chaque catégorie ? Cela ajoutera plusieurs articles factices.')) return;
+    
+    setIsSeeding(true);
+    try {
+      const seedArticles = [
+        { title: "Découvre les parcours en alternance dans la région", subtitle: "Trouve ta voie pro", content: "L'alternance est un excellent moyen d'allier théorie et pratique. Découvre les offres...", categoryId: "orientation", subcategoryId: "Alternance", imageUrl: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=800" },
+        { title: "Atelier CV et Lettre de motivation", subtitle: "Prépare tes entretiens", content: "Rejoins-nous ce mercredi pour un atelier pratique sur la rédaction de CV...", categoryId: "emploi", subcategoryId: "CV", imageUrl: "https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&q=80&w=800" },
+        { title: "Aides au logement pour les étudiants", subtitle: "APL, Mobili-Jeune...", content: "Faisons le point sur toutes les aides disponibles pour payer ton loyer...", categoryId: "quotidien", subcategoryId: "Logement", imageUrl: "https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&q=80&w=800" },
+        { title: "Pass Santé Jeunes : comment l'obtenir ?", subtitle: "Accès gratuit aux soins", content: "Le Pass Santé Jeunes te permet d'accéder à des consultations gratuites...", categoryId: "sante", subcategoryId: "Accès aux soins", imageUrl: "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&q=80&w=800" },
+        { title: "Partir en Erasmus+ l'année prochaine", subtitle: "Prépare ton dossier", content: "Les candidatures pour les départs Erasmus+ sont ouvertes. Voici comment postuler...", categoryId: "mobilite", subcategoryId: "Erasmus+", imageUrl: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&q=80&w=800" },
+        { title: "Missions de Service Civique disponibles", subtitle: "Engage-toi pour 8 mois", content: "Plusieurs associations locales recherchent des volontaires en Service Civique...", categoryId: "engagement", subcategoryId: "Service civique", imageUrl: "https://images.unsplash.com/photo-1559027615-cd4628902d4a?auto=format&fit=crop&q=80&w=800" },
+        { title: "Le Pass Culture : 300€ à 18 ans", subtitle: "Profite d'offres culturelles", content: "Si tu as 18 ans cette année, n'oublie pas de réclamer ton Pass Culture...", categoryId: "droits", subcategoryId: "Dispositifs publics", imageUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80&w=800" },
+      ];
+
+      for (const article of seedArticles) {
+        await addDoc(collection(db, 'news'), {
+          ...article,
+          isFeatured: Math.random() > 0.7,
+          status: 'published',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          publishedAt: new Date().toISOString(),
+          links: []
+        });
+      }
+      alert('Exemples générés avec succès !');
+    } catch (error) {
+      console.error("Error seeding data:", error);
+      alert('Erreur lors de la génération.');
+    } finally {
+      setIsSeeding(false);
     }
   };
 
@@ -140,13 +176,23 @@ const AdminDashboard: React.FC = () => {
 
         {activeView === 'news' && (
           <motion.div key="news" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-            <button 
-              onClick={handleCreateNews}
-              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-2 shadow-xl shadow-indigo-200"
-            >
-              <Plus size={20} />
-              Créer une information
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={handleCreateNews}
+                className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg flex items-center justify-center gap-2 shadow-xl shadow-indigo-200"
+              >
+                <Plus size={20} />
+                Créer une information
+              </button>
+              <button 
+                onClick={handleSeedData}
+                disabled={isSeeding}
+                className="px-4 py-4 bg-emerald-100 text-emerald-700 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-200 transition-all disabled:opacity-50"
+                title="Générer des exemples"
+              >
+                <Sparkles size={20} />
+              </button>
+            </div>
 
             <div className="space-y-3">
               {news.map((item) => (
@@ -261,6 +307,7 @@ const NewsEditor: React.FC<NewsEditorProps> = ({ item, onClose }) => {
       subtitle: '',
       content: '',
       categoryId: CATEGORIES[0].id,
+      subcategoryId: CATEGORIES[0].subcategories?.[0] || '',
       imageUrl: '',
       links: [],
       isFeatured: false,
@@ -270,6 +317,18 @@ const NewsEditor: React.FC<NewsEditorProps> = ({ item, onClose }) => {
 
   const [newLink, setNewLink] = useState({ label: '', url: '' });
   const [loading, setLoading] = useState(false);
+
+  const activeCategory = CATEGORIES.find(c => c.id === formData.categoryId);
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCatId = e.target.value;
+    const newCat = CATEGORIES.find(c => c.id === newCatId);
+    setFormData({
+      ...formData,
+      categoryId: newCatId,
+      subcategoryId: newCat?.subcategories?.[0] || ''
+    });
+  };
 
   const handleSave = async () => {
     if (!formData.title || !formData.content) return;
@@ -350,27 +409,42 @@ const NewsEditor: React.FC<NewsEditorProps> = ({ item, onClose }) => {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Catégorie</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Onglet (Catégorie)</label>
             <select 
               value={formData.categoryId} 
-              onChange={(e) => setFormData({...formData, categoryId: e.target.value})}
+              onChange={handleCategoryChange}
               className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-slate-900 appearance-none"
             >
               {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Statut</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Sous-catégorie</label>
             <select 
-              value={formData.status} 
-              onChange={(e) => setFormData({...formData, status: e.target.value as NewsStatus})}
+              value={formData.subcategoryId || ''} 
+              onChange={(e) => setFormData({...formData, subcategoryId: e.target.value})}
               className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-slate-900 appearance-none"
+              disabled={!activeCategory?.subcategories?.length}
             >
-              <option value="draft">Brouillon</option>
-              <option value="published">Publié</option>
-              <option value="archived">Archivé</option>
+              <option value="">-- Aucune --</option>
+              {activeCategory?.subcategories?.map(sub => (
+                <option key={sub} value={sub}>{sub}</option>
+              ))}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Statut</label>
+          <select 
+            value={formData.status} 
+            onChange={(e) => setFormData({...formData, status: e.target.value as NewsStatus})}
+            className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-slate-900 appearance-none"
+          >
+            <option value="draft">Brouillon</option>
+            <option value="published">Publié</option>
+            <option value="archived">Archivé</option>
+          </select>
         </div>
 
         <div>
