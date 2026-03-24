@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { mockDb } from '../mockFirebase';
+import { db } from '../firebase';
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { News, Feedback, NewsStatus } from '../types';
 import { CATEGORIES, REACTION_LABELS, FEEDBACK_STATUS_LABELS } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,17 +19,28 @@ const AdminDashboard: React.FC = () => {
   const [editingNews, setEditingNews] = useState<News | null>(null);
 
   useEffect(() => {
-    const refreshData = () => {
-      setNews(mockDb.getNews());
-      // For demo, we'll just use an empty array for feedback if not in localStorage
-      const savedFeedback = localStorage.getItem('demo_feedback');
-      setFeedback(savedFeedback ? JSON.parse(savedFeedback) : []);
-    };
+    const qNews = query(collection(db, 'news'), orderBy('createdAt', 'desc'));
+    const unsubscribeNews = onSnapshot(qNews, (snapshot) => {
+      const newsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as News[];
+      setNews(newsData);
+    });
 
-    refreshData();
-    // Refresh every 2 seconds for demo feel
-    const interval = setInterval(refreshData, 2000);
-    return () => clearInterval(interval);
+    const qFeedback = query(collection(db, 'feedback'), orderBy('createdAt', 'desc'));
+    const unsubscribeFeedback = onSnapshot(qFeedback, (snapshot) => {
+      const feedbackData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Feedback[];
+      setFeedback(feedbackData);
+    });
+
+    return () => {
+      unsubscribeNews();
+      unsubscribeFeedback();
+    };
   }, []);
 
   const handleEditNews = (item: News) => {
@@ -43,15 +55,20 @@ const AdminDashboard: React.FC = () => {
 
   const handleDeleteNews = async (id: string) => {
     if (window.confirm('Es-tu sûr de vouloir supprimer cette information ?')) {
-      mockDb.deleteNews(id);
-      setNews(mockDb.getNews());
+      try {
+        await deleteDoc(doc(db, 'news', id));
+      } catch (error) {
+        console.error("Error deleting news:", error);
+      }
     }
   };
 
   const handleUpdateFeedbackStatus = async (id: string, status: Feedback['status']) => {
-    const updatedFeedback = feedback.map(f => f.id === id ? { ...f, status } : f);
-    setFeedback(updatedFeedback);
-    localStorage.setItem('demo_feedback', JSON.stringify(updatedFeedback));
+    try {
+      await updateDoc(doc(db, 'feedback', id), { status });
+    } catch (error) {
+      console.error("Error updating feedback status:", error);
+    }
   };
 
   return (
@@ -267,7 +284,16 @@ const NewsEditor: React.FC<NewsEditorProps> = ({ item, onClose }) => {
           : formData.publishedAt || null,
       };
 
-      mockDb.saveNews(data);
+      if (!data.createdAt) {
+        data.createdAt = new Date().toISOString();
+      }
+
+      if (item && item.id) {
+        await setDoc(doc(db, 'news', item.id), data);
+      } else {
+        await addDoc(collection(db, 'news'), data);
+      }
+      
       onClose();
     } catch (error) {
       console.error("Error saving news:", error);

@@ -1,14 +1,16 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { mockAuth, mockDb, MockUser } from '../mockFirebase';
+import { auth, db } from '../firebase';
+import { onAuthStateChanged, User, signOut as firebaseSignOut } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { UserProfile } from '../types';
 
 interface AuthContextType {
-  user: MockUser | null;
+  user: User | null;
   profile: UserProfile | null;
   loading: boolean;
   isAdmin: boolean;
-  login: (email: string, profile: any) => void;
   logout: () => void;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -16,24 +18,58 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   isAdmin: false,
-  login: () => {},
   logout: () => {},
+  refreshProfile: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
 
 export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<MockUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const unsubscribe = mockAuth.onAuthStateChanged((mockUser) => {
-      setUser(mockUser);
+  const fetchProfile = async (firebaseUser: User) => {
+    try {
+      const docRef = doc(db, 'users', firebaseUser.uid);
+      const docSnap = await getDoc(docRef);
       
-      if (mockUser) {
-        const mockProfile = mockDb.getProfile(mockUser.uid);
-        setProfile(mockProfile);
+      if (docSnap.exists()) {
+        setProfile(docSnap.data() as UserProfile);
+      } else {
+        // Create a default profile if it's missing
+        const isDefaultAdmin = firebaseUser.email === 'admin@ij.com';
+        const nameParts = firebaseUser.displayName ? firebaseUser.displayName.split(' ') : ['Utilisateur', 'Nouveau'];
+        const newProfile = {
+          uid: firebaseUser.uid,
+          firstName: isDefaultAdmin ? 'Admin' : (nameParts[0] || 'Utilisateur'),
+          lastName: isDefaultAdmin ? 'Info Jeunes' : (nameParts.slice(1).join(' ') || 'Nouveau'),
+          email: firebaseUser.email || 'email@inconnu.fr',
+          role: isDefaultAdmin ? 'admin' : 'user',
+          createdAt: new Date().toISOString(),
+        };
+        
+        try {
+          await setDoc(docRef, newProfile);
+          setProfile(newProfile as UserProfile);
+        } catch (setErr) {
+          console.error("Error creating missing profile:", setErr);
+          // Fallback to local state if Firestore write fails
+          setProfile(newProfile as UserProfile);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      setProfile(null);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      
+      if (firebaseUser) {
+        await fetchProfile(firebaseUser);
       } else {
         setProfile(null);
       }
@@ -43,23 +79,26 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => unsubscribe();
   }, []);
 
-  const login = (email: string, userData: any) => {
-    const newUser = mockAuth.signIn(email, userData);
-    setUser(newUser);
-    setProfile(userData);
+  const logout = async () => {
+    try {
+      await firebaseSignOut(auth);
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
-  const logout = () => {
-    mockAuth.signOut();
-    setUser(null);
-    setProfile(null);
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchProfile(user);
+    }
   };
 
-  const isAdmin = profile?.role === 'admin';
+  const isAdmin = profile?.role === 'admin' || user?.email === 'admin@ij.com';
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAdmin, login, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAdmin, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
 };
+

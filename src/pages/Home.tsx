@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { mockDb } from '../mockFirebase';
+import { db } from '../firebase';
+import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
 import { News } from '../types';
 import NewsCard from '../components/NewsCard';
 import CategoryGrid from '../components/CategoryGrid';
@@ -12,16 +13,43 @@ const Home: React.FC<HomeProps> = ({ onNewsClick }) => {
   const [featuredNews, setFeaturedNews] = useState<News[]>([]);
   const [latestNews, setLatestNews] = useState<News[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const allNews = mockDb.getNews();
-    setFeaturedNews(allNews.slice(0, 3));
-    setLatestNews(allNews);
+    const q = query(
+      collection(db, 'news'),
+      where('status', '==', 'published'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as News[];
+      
+      setLatestNews(newsData);
+      setFeaturedNews(newsData.filter(n => n.isFeatured).slice(0, 3));
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching news:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const filteredNews = selectedCategory 
     ? latestNews.filter(n => n.categoryId === selectedCategory)
     : latestNews;
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-8">

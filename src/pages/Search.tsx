@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { mockDb } from '../mockFirebase';
+import { db } from '../firebase';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { News } from '../types';
 import NewsCard from '../components/NewsCard';
 import { Search as SearchIcon, X } from 'lucide-react';
@@ -14,14 +15,29 @@ interface SearchProps {
 const Search: React.FC<SearchProps> = ({ onNewsClick }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [allNews, setAllNews] = useState<News[]>([]);
   const [results, setResults] = useState<News[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    const allNews = mockDb.getNews();
-    
-    const filtered = allNews.filter((news: any) => {
+    const q = query(collection(db, 'news'), where('status', '==', 'published'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as News[];
+      setAllNews(newsData);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching news:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const filtered = allNews.filter((news) => {
       const matchesSearch = news.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                            news.content.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = !selectedCategory || news.categoryId === selectedCategory;
@@ -29,8 +45,7 @@ const Search: React.FC<SearchProps> = ({ onNewsClick }) => {
     });
 
     setResults(filtered);
-    setLoading(false);
-  }, [searchTerm, selectedCategory]);
+  }, [searchTerm, selectedCategory, allNews]);
 
   return (
     <div className="space-y-6 pb-8">
@@ -82,22 +97,26 @@ const Search: React.FC<SearchProps> = ({ onNewsClick }) => {
       </div>
 
       <div className="space-y-4">
-        <AnimatePresence mode="popLayout">
-          {results.length > 0 ? (
-            results.map((news) => (
-              <motion.div
-                key={news.id}
-                layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.2 }}
-              >
-                <NewsCard news={news} onClick={onNewsClick} />
-              </motion.div>
-            ))
-          ) : (
-            !loading && (
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : (
+          <AnimatePresence mode="popLayout">
+            {results.length > 0 ? (
+              results.map((news) => (
+                <motion.div
+                  key={news.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <NewsCard news={news} onClick={onNewsClick} />
+                </motion.div>
+              ))
+            ) : (
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -109,9 +128,9 @@ const Search: React.FC<SearchProps> = ({ onNewsClick }) => {
                 <h4 className="text-xl font-black text-slate-900 mb-1">Aucun résultat</h4>
                 <p className="text-slate-500 font-medium">Essaie d'autres mots-clés ou catégories.</p>
               </motion.div>
-            )
-          )}
-        </AnimatePresence>
+            )}
+          </AnimatePresence>
+        )}
       </div>
     </div>
   );

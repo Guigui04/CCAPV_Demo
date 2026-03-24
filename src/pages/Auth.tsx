@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { useAuth } from '../components/FirebaseProvider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User, Calendar, ArrowRight, Eye, EyeOff, Chrome } from 'lucide-react';
+import { auth, db, googleProvider } from '../firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 const Auth: React.FC = () => {
-  const { login } = useAuth();
+  const { refreshProfile } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -26,16 +29,27 @@ const Auth: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      // Mock Google sign in
-      login('google_user@gmail.com', {
-        firstName: 'Utilisateur',
-        lastName: 'Google',
-        email: 'google_user@gmail.com',
-        role: 'user',
-        birthDate: '',
-        createdAt: new Date().toISOString(),
-      });
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      // Check if profile exists, if not create one
+      const docRef = doc(db, 'users', user.uid);
+      const docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) {
+        const nameParts = user.displayName ? user.displayName.split(' ') : ['Utilisateur', 'Google'];
+        await setDoc(docRef, {
+          uid: user.uid,
+          firstName: nameParts[0] || 'Utilisateur',
+          lastName: nameParts.slice(1).join(' ') || 'Google',
+          email: user.email || '',
+          role: 'user',
+          createdAt: new Date().toISOString(),
+        });
+      }
+      await refreshProfile();
     } catch (err: any) {
+      console.error(err);
       setError("Erreur avec la connexion Google.");
     } finally {
       setLoading(false);
@@ -54,18 +68,32 @@ const Auth: React.FC = () => {
     }
 
     try {
-      // Mock login/signup
-      const role = formData.email === 'admin@ccapv.com' ? 'admin' : 'user';
-      login(formData.email, {
-        firstName: formData.firstName || (isLogin ? 'Utilisateur' : ''),
-        lastName: formData.lastName || (isLogin ? 'Démo' : ''),
-        email: formData.email,
-        role: role,
-        birthDate: formData.birthDate,
-        createdAt: new Date().toISOString(),
-      });
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      } else {
+        const result = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        const user = result.user;
+        
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          role: 'user',
+          birthDate: formData.birthDate,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      await refreshProfile();
     } catch (err: any) {
-      setError("Une erreur est survenue");
+      console.error(err);
+      if (err.code === 'auth/email-already-in-use') {
+        setError("Cet email est déjà utilisé.");
+      } else if (err.code === 'auth/invalid-credential') {
+        setError("Email ou mot de passe incorrect.");
+      } else {
+        setError("Une erreur est survenue.");
+      }
     } finally {
       setLoading(false);
     }
@@ -221,42 +249,10 @@ const Auth: React.FC = () => {
         >
           {isLogin ? "Pas encore de compte ? Inscris-toi" : "Déjà un compte ? Connecte-toi"}
         </button>
-
-        <div className="pt-6 border-t border-slate-200">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Mode Démo (Test)</p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <button 
-              onClick={() => {
-                setIsLogin(true);
-                setFormData({ ...formData, email: 'admin@ccapv.com', password: 'admin123' });
-              }}
-              className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all"
-            >
-              Admin
-            </button>
-            <button 
-              onClick={() => {
-                setIsLogin(true);
-                setFormData({ ...formData, email: 'jeune1@test.fr', password: 'jeune123' });
-              }}
-              className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold hover:bg-slate-200 transition-all"
-            >
-              Jeune 1
-            </button>
-            <button 
-              onClick={() => {
-                setIsLogin(true);
-                setFormData({ ...formData, email: 'jeune2@test.fr', password: 'jeune223' });
-              }}
-              className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold hover:bg-slate-200 transition-all"
-            >
-              Jeune 2
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
 };
 
 export default Auth;
+

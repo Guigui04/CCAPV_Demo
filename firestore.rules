@@ -15,11 +15,11 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() &&
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         request.auth.token.email == "guillaumegiraud04@gmail.com");
+         request.auth.token.email == "admin@ij.com");
     }
 
     function isValidUser(data) {
-      return data.keys().hasOnly(['firstName', 'lastName', 'email', 'role', 'birthDate', 'createdAt']) &&
+      return data.uid is string &&
              data.firstName is string && data.firstName.size() > 0 && data.firstName.size() < 100 &&
              data.lastName is string && data.lastName.size() > 0 && data.lastName.size() < 100 &&
              data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
@@ -37,8 +37,7 @@ service cloud.firestore {
       return data.keys().hasAll(['newsId', 'userId', 'reactionType', 'status']) &&
              data.newsId is string &&
              data.userId == request.auth.uid &&
-             data.reactionType in ['useful', 'unclear', 'interested', 'more_info'] &&
-             data.status == 'new';
+             data.reactionType in ['useful', 'unclear', 'interested', 'more_info'];
     }
 
     // ===============================================================

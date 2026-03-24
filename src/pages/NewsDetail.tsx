@@ -5,6 +5,8 @@ import { News, ReactionType } from '../types';
 import { CATEGORIES, REACTION_LABELS } from '../constants';
 import { cn, formatDate } from '../utils';
 import { useAuth } from '../components/FirebaseProvider';
+import { db } from '../firebase';
+import { collection, addDoc } from 'firebase/firestore';
 
 interface NewsDetailProps {
   news: News;
@@ -26,7 +28,6 @@ const NewsDetail: React.FC<NewsDetailProps> = ({ news, onBack }) => {
     setIsSubmitting(true);
     try {
       const newFeedback = {
-        id: Math.random().toString(36).substr(2, 9),
         newsId: news.id,
         newsTitle: news.title,
         userId: profile.uid,
@@ -38,10 +39,7 @@ const NewsDetail: React.FC<NewsDetailProps> = ({ news, onBack }) => {
         createdAt: new Date().toISOString(),
       };
 
-      const savedFeedback = localStorage.getItem('demo_feedback');
-      const feedbackList = savedFeedback ? JSON.parse(savedFeedback) : [];
-      feedbackList.push(newFeedback);
-      localStorage.setItem('demo_feedback', JSON.stringify(feedbackList));
+      await addDoc(collection(db, 'feedback'), newFeedback);
       
       setIsSubmitted(true);
     } catch (error) {
